@@ -1,0 +1,16 @@
+Skill,DemandScore,Category
+Python,98,Programming
+SQL,95,Database
+Machine Learning,94,AI
+AWS,92,Cloud
+JavaScript,91,Web Development
+Power BI,89,Analytics
+Docker,88,DevOps
+Cybersecurity,87,Security
+React,86,Frontend
+Kubernetes,85,DevOps
+TensorFlow,84,AI
+LangChain,83,Generative AI
+LLM,82,Generative AI
+RAG,81,Generative AI
+Prompt Engineering,80,Generative AI
