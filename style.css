@@ -1,0 +1,405 @@
+:root {
+    --bg: #070b14;
+    --panel: #0f172a;
+    --panel-2: #111827;
+    --line: rgba(148, 163, 184, 0.18);
+    --text: #e5edf7;
+    --muted: #94a3b8;
+    --cyan: #22d3ee;
+    --green: #34d399;
+    --violet: #a78bfa;
+    --red: #fb7185;
+    --amber: #fbbf24;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@600;700&display=swap');
+
+.stApp {
+    background:
+        radial-gradient(circle at top left, rgba(34, 211, 238, 0.13), transparent 32rem),
+        radial-gradient(circle at top right, rgba(167, 139, 250, 0.12), transparent 28rem),
+        var(--bg);
+    color: var(--text);
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+}
+
+.main .block-container {
+    max-width: 1320px;
+    padding: 1.4rem 2rem 3rem;
+}
+
+h1, h2, h3, h4, h5, h6, p, label, span {
+    letter-spacing: 0;
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+}
+
+h1, h2, h3 {
+    color: var(--text);
+    font-weight: 850;
+}
+
+p, .stMarkdown, .stCaption, label {
+    color: var(--muted);
+}
+
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0b1120 0%, #080c16 100%);
+    border-right: 1px solid var(--line);
+}
+
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+    color: var(--muted);
+}
+
+.brand-lockup {
+    display: flex;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 0.8rem 0 1.2rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 1rem;
+}
+
+.brand-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--cyan), var(--violet));
+    color: #020617;
+    font-weight: 900;
+    box-shadow: 0 14px 30px rgba(34, 211, 238, 0.18);
+}
+
+.brand-mark svg {
+    width: 27px;
+    height: 27px;
+    fill: none;
+    stroke: #020617;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.brand-lockup h1 {
+    font-size: 1.15rem;
+    margin: 0;
+    line-height: 1.1;
+    font-weight: 900;
+}
+
+.brand-lockup p {
+    margin: 0.2rem 0 0;
+    font-size: 0.78rem;
+}
+
+.sidebar-note {
+    margin-top: 1.25rem;
+    padding: 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.7);
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+div[role="radiogroup"] label {
+    padding: 0.45rem 0.55rem;
+    border-radius: 8px;
+    transition: background 160ms ease, color 160ms ease;
+}
+
+div[role="radiogroup"] label:hover {
+    background: rgba(34, 211, 238, 0.08);
+}
+
+.hero-panel {
+    padding: 1.35rem 2rem 1.6rem;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.9)),
+        linear-gradient(135deg, rgba(34, 211, 238, 0.16), rgba(167, 139, 250, 0.14));
+    margin-bottom: 1.2rem;
+    text-align: center;
+}
+
+.hero-panel span,
+.section-heading span {
+    color: var(--cyan);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.hero-kicker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0.38rem 1.2rem;
+    margin-bottom: 0.45rem;
+    border: 1px solid rgba(34, 211, 238, 0.32);
+    border-radius: 8px;
+    background: rgba(34, 211, 238, 0.08);
+    color: #bae6fd;
+    font-size: clamp(0.82rem, 1.3vw, 1rem);
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    box-shadow: 0 14px 34px rgba(34, 211, 238, 0.12);
+}
+
+.hero-panel h1 {
+    max-width: 1080px;
+    margin: 0.2rem auto 0.45rem;
+    font-family: "Space Grotesk", "Inter", "Segoe UI", Arial, sans-serif;
+    font-size: clamp(2.7rem, 5.8vw, 5.9rem);
+    line-height: 0.98;
+    letter-spacing: 0;
+    font-weight: 900;
+    background: linear-gradient(135deg, #f8fafc 0%, #bae6fd 48%, #c4b5fd 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 20px 60px rgba(34, 211, 238, 0.18);
+}
+
+.hero-action {
+    color: var(--cyan);
+    font-size: clamp(0.95rem, 1.65vw, 1.25rem);
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-top: 0.15rem;
+}
+
+.hero-panel p {
+    max-width: 940px;
+    margin: 0.7rem auto 0;
+    font-size: 1.03rem;
+    line-height: 1.65;
+}
+
+.section-heading {
+    margin: 0.8rem 0 0.9rem;
+}
+
+.section-heading h2 {
+    margin: 0.18rem 0;
+    font-size: 1.45rem;
+}
+
+.section-heading p {
+    margin: 0;
+    max-width: 760px;
+}
+
+.metric-card,
+.score-panel {
+    min-height: 126px;
+    padding: 1.05rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(15, 23, 42, 0.94));
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+}
+
+.feature-tile {
+    min-height: 178px;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(8, 13, 24, 0.92));
+    margin: 0.8rem 0 1rem;
+}
+
+.tile-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(34, 211, 238, 0.11);
+    border: 1px solid rgba(34, 211, 238, 0.3);
+    color: #67e8f9;
+    font-size: 0.78rem;
+    font-weight: 900;
+    margin-bottom: 0.8rem;
+}
+
+.feature-tile h3 {
+    font-size: 1rem;
+    margin: 0 0 0.35rem;
+}
+
+.feature-tile p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.55;
+}
+
+.roadmap-step {
+    display: grid;
+    grid-template-columns: 54px 1fr;
+    gap: 1rem;
+    align-items: start;
+    padding: 1.1rem;
+    margin: 0.7rem 0;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(17, 24, 39, 0.95), rgba(15, 23, 42, 0.9));
+}
+
+.roadmap-number {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    font-weight: 900;
+    color: #020617;
+    background: var(--cyan);
+    box-shadow: 0 12px 28px rgba(34, 211, 238, 0.2);
+}
+
+.roadmap-step h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1.08rem;
+}
+
+.roadmap-step p {
+    margin: 0;
+    line-height: 1.6;
+}
+
+.roadmap-step.green .roadmap-number {
+    background: var(--green);
+}
+
+.roadmap-step.violet .roadmap-number {
+    background: var(--violet);
+}
+
+.roadmap-step.red .roadmap-number {
+    background: var(--red);
+}
+
+.metric-card p {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--muted);
+}
+
+.metric-card h3 {
+    margin: 0.35rem 0 0.15rem;
+    font-size: 2rem;
+    color: var(--text);
+}
+
+.metric-card span {
+    color: var(--cyan);
+    font-size: 0.82rem;
+}
+
+.badge-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.35rem 0 1rem;
+}
+
+.skill-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(15, 23, 42, 0.76);
+    color: var(--text);
+    font-size: 0.86rem;
+    font-weight: 650;
+}
+
+.skill-badge.success {
+    border-color: rgba(52, 211, 153, 0.35);
+    background: rgba(52, 211, 153, 0.11);
+    color: #a7f3d0;
+}
+
+.skill-badge.danger {
+    border-color: rgba(251, 113, 133, 0.34);
+    background: rgba(251, 113, 133, 0.1);
+    color: #fecdd3;
+}
+
+.skill-badge.info {
+    border-color: rgba(34, 211, 238, 0.32);
+    background: rgba(34, 211, 238, 0.1);
+    color: #bae6fd;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.stButton > button,
+.stDownloadButton > button {
+    width: 100%;
+    min-height: 42px;
+    border-radius: 8px;
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    background: linear-gradient(135deg, #0891b2, #7c3aed);
+    color: white;
+    font-weight: 800;
+}
+
+.stButton > button:hover,
+.stDownloadButton > button:hover {
+    border-color: rgba(52, 211, 153, 0.55);
+    color: white;
+}
+
+[data-testid="stMetric"] {
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.82);
+}
+
+[data-testid="stMetricLabel"] p {
+    color: var(--muted);
+}
+
+[data-testid="stMetricValue"] {
+    color: var(--text);
+}
+
+[data-testid="stDataFrame"],
+[data-testid="stTable"] {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+div[data-baseweb="select"] > div,
+div[data-baseweb="input"] > div,
+textarea,
+[data-testid="stFileUploader"] section {
+    border-radius: 8px;
+    border-color: var(--line);
+    background-color: rgba(15, 23, 42, 0.9);
+    color: var(--text);
+}
+
+[data-testid="stAlert"] {
+    border-radius: 8px;
+}
+
+hr {
+    border-color: var(--line);
+}

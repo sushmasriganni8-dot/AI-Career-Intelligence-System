@@ -1,0 +1,144 @@
+Skill,Course,Platform,Level
+Python,Python for Everybody,Coursera,Beginner
+Python,100 Days of Code Python Bootcamp,Udemy,Intermediate
+Python,Python Programming Masterclass,Udemy,Beginner
+
+SQL,SQL for Data Science,Coursera,Beginner
+SQL,The Complete SQL Bootcamp,Udemy,Intermediate
+SQL,Advanced SQL for Data Analysis,Udemy,Advanced
+
+Excel,Microsoft Excel Data Analysis,Coursera,Beginner
+Excel,Excel Skills for Business,Coursera,Intermediate
+
+Power BI,Microsoft Power BI Learning Path,Microsoft,Intermediate
+Power BI,Power BI A-Z,Udemy,Intermediate
+
+Tableau,Data Visualization with Tableau,Coursera,Intermediate
+Tableau,Tableau 2024 A-Z,Udemy,Intermediate
+
+Statistics,Statistics for Data Science,Coursera,Beginner
+Statistics,Probability and Statistics,edX,Intermediate
+
+Pandas,Data Analysis with Pandas,DataCamp,Intermediate
+Pandas,Pandas for Data Science,Udemy,Intermediate
+
+NumPy,NumPy Essentials for Data Science,Udemy,Beginner
+
+Machine Learning,Machine Learning Specialization,Coursera,Intermediate
+Machine Learning,Applied Machine Learning,IBM,Intermediate
+
+Deep Learning,Deep Learning Specialization,Coursera,Advanced
+Deep Learning,Deep Learning with TensorFlow,Udemy,Advanced
+
+TensorFlow,TensorFlow Developer Certificate,Coursera,Advanced
+TensorFlow,TensorFlow for Deep Learning,Udemy,Advanced
+
+PyTorch,Deep Learning with PyTorch,Udemy,Advanced
+PyTorch,PyTorch Fundamentals,DataCamp,Intermediate
+
+Scikit-Learn,Machine Learning with Scikit-Learn,DataCamp,Intermediate
+
+NLP,Natural Language Processing Specialization,Coursera,Advanced
+NLP,NLP with Python,Udemy,Intermediate
+
+LLM,Generative AI with Large Language Models,DeepLearning.AI,Advanced
+LLM,Building Applications with LLMs,Coursera,Advanced
+
+LangChain,LangChain for LLM Applications,DeepLearning.AI,Advanced
+LangChain,Building AI Agents with LangChain,Udemy,Advanced
+
+RAG,RAG Systems for Generative AI,Udemy,Advanced
+
+Prompt Engineering,Prompt Engineering for Developers,DeepLearning.AI,Intermediate
+Prompt Engineering,Advanced Prompt Engineering,Udemy,Advanced
+
+AWS,AWS Cloud Practitioner,AWS Skill Builder,Beginner
+AWS,AWS Solutions Architect Associate,Udemy,Intermediate
+
+Azure,Microsoft Azure Fundamentals,Microsoft Learn,Beginner
+Azure,Azure Administrator Associate,Microsoft Learn,Intermediate
+
+GCP,Google Cloud Fundamentals,Coursera,Beginner
+
+Docker,Docker Essentials,Udemy,Intermediate
+Docker,Docker Mastery,Udemy,Advanced
+
+Kubernetes,Kubernetes for Beginners,Udemy,Intermediate
+Kubernetes,Certified Kubernetes Application Developer,Udemy,Advanced
+
+Linux,Linux for Beginners,Udemy,Beginner
+Linux,Linux Administration Bootcamp,Udemy,Intermediate
+
+Terraform,HashiCorp Terraform Associate,Udemy,Intermediate
+
+CI/CD,CI CD Pipelines with Jenkins,Udemy,Intermediate
+Jenkins,Jenkins from Zero to Hero,Udemy,Intermediate
+
+Spark,Big Data with Apache Spark,Coursera,Intermediate
+Hadoop,Hadoop Platform and Application Framework,Coursera,Intermediate
+Airflow,Apache Airflow Fundamentals,Udemy,Intermediate
+
+ETL,ETL and Data Pipelines,Coursera,Intermediate
+Data Warehousing,Data Warehousing for Business Intelligence,Coursera,Intermediate
+
+Java,Java Programming Masterclass,Udemy,Beginner
+C++,Beginning C++ Programming,Udemy,Beginner
+
+DSA,Data Structures and Algorithms,GeeksforGeeks,Intermediate
+OOP,Object Oriented Programming in Python,Udemy,Beginner
+System Design,System Design Fundamentals,Udemy,Advanced
+
+Git,Git and GitHub Bootcamp,Udemy,Beginner
+GitHub Actions,GitHub Actions CI CD,Udemy,Intermediate
+
+Django,Django Full Stack Development,Udemy,Intermediate
+Flask,Python Flask for Beginners,Udemy,Intermediate
+FastAPI,FastAPI Complete Course,Udemy,Intermediate
+
+REST APIs,REST API Design and Development,Udemy,Intermediate
+
+HTML,HTML Complete Guide,Udemy,Beginner
+CSS,CSS Complete Guide,Udemy,Beginner
+JavaScript,JavaScript Complete Course,Udemy,Intermediate
+
+React,React Complete Guide,Udemy,Intermediate
+Redux,Redux Toolkit Masterclass,Udemy,Intermediate
+TypeScript,TypeScript Complete Guide,Udemy,Intermediate
+Tailwind CSS,Tailwind CSS from Scratch,Udemy,Intermediate
+
+Node.js,NodeJS Complete Developer Guide,Udemy,Intermediate
+Express.js,NodeJS Express Framework,Udemy,Intermediate
+MongoDB,MongoDB Complete Developer Course,Udemy,Intermediate
+
+Flutter,Flutter and Dart Complete Guide,Udemy,Intermediate
+Dart,Dart Programming Masterclass,Udemy,Beginner
+Firebase,Firebase for Mobile Apps,Udemy,Intermediate
+
+Android,Android App Development,Coursera,Intermediate
+iOS,iOS Development Bootcamp,Udemy,Intermediate
+
+Cybersecurity,Google Cybersecurity Certificate,Coursera,Beginner
+Networking,Computer Networking Fundamentals,Coursera,Beginner
+SIEM,SIEM Fundamentals,Udemy,Intermediate
+Ethical Hacking,Ethical Hacking Bootcamp,Udemy,Intermediate
+Incident Response,Incident Response and Threat Hunting,Udemy,Advanced
+Vulnerability Assessment,Vulnerability Management,Coursera,Intermediate
+
+MySQL,MySQL Database Administration,Udemy,Intermediate
+PostgreSQL,PostgreSQL for Everybody,Coursera,Intermediate
+Database Security,Database Security Fundamentals,Udemy,Intermediate
+
+A/B Testing,A/B Testing for Product Analytics,Udemy,Intermediate
+Product Metrics,Product Analytics Fundamentals,Coursera,Intermediate
+
+Solidity,Solidity Smart Contract Development,Udemy,Advanced
+Ethereum,Ethereum Blockchain Developer Bootcamp,Udemy,Advanced
+Smart Contracts,Smart Contracts Development,Udemy,Advanced
+Web3,Web3 Development Fundamentals,Udemy,Advanced
+Cryptography,Cryptography Essentials,Coursera,Intermediate
+
+Figma,Figma UI UX Design Essentials,Udemy,Beginner
+Wireframing,UX Wireframing Fundamentals,Coursera,Beginner
+Prototyping,UI UX Prototyping with Figma,Udemy,Intermediate
+User Research,User Research Methods,Coursera,Intermediate
+Design Systems,Design Systems Masterclass,Udemy,Advanced
