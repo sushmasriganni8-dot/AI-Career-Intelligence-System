@@ -10,6 +10,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 try:
+    import pypdfium2 as pdfium
+except ImportError:
+    pdfium = None
+
+try:
     import pdfplumber
 except ImportError:  # The app still works for TXT resumes.
     pdfplumber = None
@@ -68,21 +73,27 @@ def skill_catalog(career_roles: pd.DataFrame) -> dict[str, str]:
     return {normalize(skill): skill for skill in career_roles["Skill"].dropna().unique()}
 
 
-def extract_docx_text(uploaded_file) -> str:
+def extract_docx_text(uploaded_file) -> tuple[str, str]:
     if Document is None:
-        return ""
+        return "", "DOCX parser (python-docx) is not installed or loaded."
 
-    document = Document(BytesIO(uploaded_file.getvalue()))
-    paragraphs = [paragraph.text for paragraph in document.paragraphs if paragraph.text.strip()]
+    try:
+        document = Document(BytesIO(uploaded_file.getvalue()))
+        paragraphs = [paragraph.text for paragraph in document.paragraphs if paragraph.text.strip()]
 
-    table_text = []
-    for table in document.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                if cell.text.strip():
-                    table_text.append(cell.text)
+        table_text = []
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    if cell.text.strip():
+                        table_text.append(cell.text)
 
-    return "\n".join(paragraphs + table_text)
+        text = "\n".join(paragraphs + table_text).strip()
+        if text:
+            return text, ""
+        return "", "The Word file is empty or contains no readable text."
+    except Exception as e:
+        return "", f"Error reading Word file: {e}"
 
 
 def extract_plain_text(uploaded_file) -> str:
@@ -97,32 +108,55 @@ def extract_plain_text(uploaded_file) -> str:
     return ""
 
 
-def extract_pdf_text(uploaded_file) -> str:
+def extract_pdf_text(uploaded_file) -> tuple[str, str]:
     pdf_bytes = uploaded_file.getvalue()
     text_parts = []
+    errors = []
+
+    if pdfium is not None:
+        try:
+            with pdfium.PdfDocument(pdf_bytes) as doc:
+                for page in doc:
+                    textpage = page.get_textpage()
+                    text_parts.append(textpage.get_text_range() or "")
+                    textpage.close()
+            text = "\n".join(text_parts).strip()
+            if text:
+                return text, ""
+            errors.append("pypdfium2 extracted no text")
+        except Exception as e:
+            errors.append(f"pypdfium2 error: {e}")
+    else:
+        errors.append("pypdfium2 is not installed/loaded")
 
     if pdfplumber is not None:
         try:
+            text_parts_plumber = []
             with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
                 for page in pdf.pages:
-                    text_parts.append(page.extract_text() or "")
-        except Exception:
-            text_parts = []
-
-    text = "\n".join(text_parts).strip()
-    if text:
-        return text
+                    text_parts_plumber.append(page.extract_text() or "")
+            text = "\n".join(text_parts_plumber).strip()
+            if text:
+                return text, ""
+            errors.append("pdfplumber extracted no text")
+        except Exception as e:
+            errors.append(f"pdfplumber error: {e}")
+    else:
+        errors.append("pdfplumber is not installed/loaded")
 
     if pdfminer_extract_text is not None:
         try:
-            with NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-                temp_file.write(pdf_bytes)
-                temp_path = temp_file.name
-            return pdfminer_extract_text(temp_path).strip()
-        except Exception:
-            return ""
+            text = pdfminer_extract_text(BytesIO(pdf_bytes)).strip()
+            if text:
+                return text, ""
+            errors.append("pdfminer extracted no text")
+        except Exception as e:
+            errors.append(f"pdfminer error: {e}")
+    else:
+        errors.append("pdfminer is not installed/loaded")
 
-    return ""
+    error_summary = " | ".join(errors)
+    return "", f"Could not extract text from PDF. Diagnostic details: {error_summary}"
 
 
 def detect_uploaded_file_type(uploaded_file) -> str:
@@ -149,43 +183,162 @@ def extract_resume_text(uploaded_file) -> tuple[str, str]:
 
     try:
         if suffix in {".txt", ".md", ".csv", ".rtf"}:
-            return extract_plain_text(uploaded_file), ""
-
-        if suffix == ".docx":
-            text = extract_docx_text(uploaded_file)
+            text = extract_plain_text(uploaded_file).strip()
             if text:
                 return text, ""
-            return "", "This Word file could not be read. Please try saving it as PDF or DOCX again."
+            return "", "The plain text file is empty."
+
+        if suffix == ".docx":
+            return extract_docx_text(uploaded_file)
 
         if suffix == ".doc":
             return "", "Old .doc files are not supported directly. Please save it as .docx or PDF and upload again."
 
         if suffix == ".pdf":
-            text = extract_pdf_text(uploaded_file)
-            if text:
-                return text, ""
-            return "", "The PDF uploaded successfully, but no readable text was found. If it is a scanned/image resume, please upload DOCX or text-based PDF."
+            return extract_pdf_text(uploaded_file)
 
         fallback_text = extract_plain_text(uploaded_file).strip()
         if fallback_text:
             return fallback_text, ""
 
-        return "", "This file type uploaded, but I could not extract readable resume text from it."
+        return "", f"Unsupported file type: {suffix}. Please try PDF, DOCX, or TXT format."
 
-    except Exception:
-        return "", "The file uploaded, but there was a problem reading it. Please try PDF, DOCX, or TXT format."
+    except Exception as e:
+        return "", f"General error reading file: {e}. Please try PDF, DOCX, or TXT format."
 
+
+SYNONYMS = {
+    "aws": ["aws", "amazon web services", "amazon web service"],
+    "azure": ["azure", "microsoft azure"],
+    "ci/cd": ["ci/cd", "ci-cd", "continuous integration", "continuous deployment", "github actions", "jenkins"],
+    "css": ["css", "css3"],
+    "dsa": ["dsa", "data structures", "algorithms", "data structures and algorithms"],
+    "data visualization": ["data visualization", "data-visualization", "dataviz", "tableau", "power bi", "matplotlib", "seaborn"],
+    "deep learning": ["deep learning", "dl", "deeplearning"],
+    "ethical hacking": ["ethical hacking", "penetration testing", "pen testing", "pen-testing", "white hat"],
+    "gcp": ["gcp", "google cloud platform", "google cloud"],
+    "github actions": ["github actions", "github-actions"],
+    "html": ["html", "html5"],
+    "javascript": ["javascript", "js", "ecmascript"],
+    "kubernetes": ["kubernetes", "k8s"],
+    "llm": ["llm", "large language model", "large language models", "llms"],
+    "machine learning": ["machine learning", "ml", "machinelearning"],
+    "nlp": ["nlp", "natural language processing"],
+    "oop": ["oop", "object oriented programming", "object-oriented"],
+    "rest apis": ["rest api", "rest apis", "restful api", "restful apis", "restful"],
+    "react": ["react", "reactjs", "react.js"],
+    "scikit-learn": ["scikit-learn", "scikit learn", "sklearn"],
+    "tailwind css": ["tailwind css", "tailwind"],
+    "vector databases": ["vector database", "vector databases", "vector db", "vector dbs", "chromadb", "pinecone"],
+    "web3": ["web3", "web 3", "web3.0"],
+    "wireframing": ["wireframe", "wireframes", "wireframing"],
+}
 
 def detect_skills(text: str, catalog: dict[str, str]) -> list[str]:
     normalized_text = normalize(text)
     found = []
 
     for normalized_skill, display_skill in catalog.items():
+        # Check direct match
         pattern = rf"(?<!\w){re.escape(normalized_skill)}(?!\w)"
         if re.search(pattern, normalized_text):
             found.append(display_skill)
+            continue
+        
+        # Check synonyms
+        syns = SYNONYMS.get(normalized_skill)
+        if syns:
+            matched = False
+            for syn in syns:
+                syn_norm = normalize(syn)
+                pattern_syn = rf"(?<!\w){re.escape(syn_norm)}(?!\w)"
+                if re.search(pattern_syn, normalized_text):
+                    found.append(display_skill)
+                    matched = True
+                    break
+            if matched:
+                continue
 
     return sorted(set(found))
+
+
+def analyze_resume_structure(text: str) -> dict[str, object]:
+    normalized = text.lower()
+    
+    # Check for email
+    email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+    has_email = bool(re.search(email_pattern, text))
+    
+    # Check for links (LinkedIn, GitHub)
+    has_linkedin = "linkedin.com" in normalized
+    has_github = "github.com" in normalized
+    
+    # Check for standard sections
+    sections = {
+        "Experience": ["experience", "work history", "employment", "professional background", "work experience"],
+        "Education": ["education", "academic", "university", "college", "degree", "academic background"],
+        "Skills": ["skills", "technical skills", "core competencies", "technologies", "key skills"],
+        "Projects": ["projects", "personal projects", "key projects", "portfolio", "academic projects"],
+    }
+    
+    found_sections = {}
+    for sec_name, keywords in sections.items():
+        found = False
+        for kw in keywords:
+            if rf"\b{kw}\b" in normalized:
+                found = True
+                break
+        found_sections[sec_name] = found
+        
+    # Word count check
+    words = text.split()
+    word_count = len(words)
+    if word_count < 300:
+        word_score = 50
+        word_msg = "Too short (under 300 words). Add detail to your experience."
+    elif word_count > 1200:
+        word_score = 70
+        word_msg = "Too long (over 1200 words). Keep it concise (1-2 pages)."
+    else:
+        word_score = 100
+        word_msg = "Perfect length (300-1200 words)."
+        
+    # Action verbs check
+    action_verbs = [
+        "led", "managed", "developed", "implemented", "designed", "created", 
+        "optimized", "increased", "reduced", "analyzed", "built", "engineered",
+        "formulated", "collaborated", "spearheaded", "accelerated", "integrated",
+        "automated", "streamlined", "solved"
+    ]
+    found_verbs = [v for v in action_verbs if rf"\b{v}\b" in normalized]
+    verb_count = len(found_verbs)
+    if verb_count >= 8:
+        verb_score = 100
+        verb_msg = f"Excellent use of action verbs ({verb_count} found)."
+    elif verb_count >= 4:
+        verb_score = 80
+        verb_msg = f"Good use of action verbs ({verb_count} found). Boost with more impact-focused terms."
+    else:
+        verb_score = 50
+        verb_msg = f"Weak use of action verbs ({verb_count} found). Boost with action-driven terms."
+
+    contact_score = 100 if (has_email and (has_linkedin or has_github)) else (75 if has_email else 30)
+    section_score = (sum(found_sections.values()) / len(sections)) * 100
+    
+    overall_structure_score = round((contact_score * 0.25) + (section_score * 0.35) + (word_score * 0.20) + (verb_score * 0.20), 1)
+    
+    return {
+        "overall_score": overall_structure_score,
+        "has_email": has_email,
+        "has_linkedin": has_linkedin,
+        "has_github": has_github,
+        "found_sections": found_sections,
+        "word_count": word_count,
+        "word_msg": word_msg,
+        "verb_count": verb_count,
+        "verb_msg": verb_msg,
+        "found_verbs": sorted(list(set(found_verbs))),
+    }
 
 
 def role_required_skills(career_roles: pd.DataFrame, role: str) -> list[str]:
@@ -208,9 +361,14 @@ def score_role(user_skills: list[str], required_skills: list[str]) -> dict[str, 
     }
 
 
-def semantic_similarity(text_a: str, text_b: str) -> float:
+def analyze_semantic_matching(text_a: str, text_b: str) -> dict[str, object]:
     if not text_a.strip() or not text_b.strip():
-        return 0.0
+        return {
+            "score": 0.0,
+            "vocab_count": 0,
+            "top_terms": [],
+            "feature_dims": 0
+        }
 
     vectorizer = TfidfVectorizer(
         stop_words="english",
@@ -220,9 +378,42 @@ def semantic_similarity(text_a: str, text_b: str) -> float:
 
     try:
         matrix = vectorizer.fit_transform([text_a, text_b])
-        return round(float(cosine_similarity(matrix[0:1], matrix[1:2])[0][0]) * 100, 1)
-    except ValueError:
-        return 0.0
+        similarity = round(float(cosine_similarity(matrix[0:1], matrix[1:2])[0][0]) * 100, 1)
+        
+        # Get vocabulary terms and find overlap
+        vocab = vectorizer.get_feature_names_out()
+        
+        # Multiply row vectors to see which features contribute most to similarity
+        row_a = matrix[0].toarray()[0]
+        row_b = matrix[1].toarray()[0]
+        contributions = row_a * row_b
+        
+        # Sort contributions to find top matching terms
+        term_contributions = []
+        for idx, contrib in enumerate(contributions):
+            if contrib > 0:
+                term_contributions.append((vocab[idx], float(contrib)))
+                
+        # Sort by contribution value descending
+        term_contributions.sort(key=lambda x: x[1], reverse=True)
+        top_terms = [term[0] for term in term_contributions[:12]]
+        
+        return {
+            "score": similarity,
+            "vocab_count": len(vocab),
+            "top_terms": top_terms,
+            "feature_dims": matrix.shape[1]
+        }
+    except Exception:
+        return {
+            "score": 0.0,
+            "vocab_count": 0,
+            "top_terms": [],
+            "feature_dims": 0
+        }
+
+def semantic_similarity(text_a: str, text_b: str) -> float:
+    return analyze_semantic_matching(text_a, text_b)["score"]
 
 
 def role_document(career_roles: pd.DataFrame, role: str) -> str:
@@ -374,6 +565,19 @@ with st.sidebar:
 
     st.markdown("<div class='sidebar-note'>Build a stronger profile with semantic ATS scoring, role matching, skill gaps, learning paths, and market signals.</div>", unsafe_allow_html=True)
 
+    st.markdown("")
+    st.markdown("", unsafe_allow_html=True)
+    status_pdfium = "✅ pypdfium2 (Primary)" if pdfium is not None else "❌ pypdfium2 (Missing)"
+    status_pdfplumber = "✅ pdfplumber (Fallback)" if pdfplumber is not None else "❌ pdfplumber (Missing)"
+    status_pdfminer = "✅ pdfminer (Fallback)" if pdfminer_extract_text is not None else "❌ pdfminer (Missing)"
+    status_docx = "✅ python-docx" if Document is not None else "❌ python-docx (Missing)"
+    st.markdown(
+        f"<div style='display: none;'>"
+        f"{status_pdfium}<br>{status_pdfplumber}<br>{status_pdfminer}<br>{status_docx}"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
 
 if menu == "Dashboard":
     st.markdown(
@@ -412,7 +616,18 @@ if menu == "Dashboard":
 
     with left:
         section_header("Top Career Opportunities", "role intelligence", "Compare salary bands, demand, growth, and industry direction.")
-        st.dataframe(career_info, use_container_width=True, hide_index=True)
+        st.dataframe(
+            career_info,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Role": st.column_config.TextColumn("Career Role", help="Professional role title"),
+                "Salary": st.column_config.TextColumn("Average Salary", help="Typical salary bracket"),
+                "Demand": st.column_config.TextColumn("Demand Level", help="Current job market demand"),
+                "Growth": st.column_config.TextColumn("Annual Growth", help="Projected industry growth rate"),
+                "Industry": st.column_config.TextColumn("Sector / Industry", help="Core target sector"),
+            }
+        )
 
     with right:
         section_header("Demand Leaders", "market pulse", "Highest scoring skills in the current dataset.")
@@ -479,71 +694,188 @@ elif menu == "Resume Analysis":
         st.session_state["resume_skills"] = detected
         required = role_required_skills(career_roles, target_role)
         role_skill_score = score_role(detected, required)
-        role_semantic_score = semantic_similarity(resume_text, role_document(career_roles, target_role))
+        
+        # Structure analysis
+        structure_results = analyze_resume_structure(resume_text)
+        structure_score = structure_results["overall_score"]
 
         if jd_text:
             jd_skills = detect_skills(jd_text, catalog)
             jd_gap = score_role(detected, jd_skills)
-            jd_semantic_score = semantic_similarity(resume_text, jd_text)
+            semantic_results = analyze_semantic_matching(resume_text, jd_text)
             skill_score = jd_gap["score"] if jd_skills else role_skill_score["score"]
-            ats_score = round((jd_semantic_score * 0.7) + (skill_score * 0.3), 1)
             matched_skills = jd_gap["matched"]
             missing_skills = jd_gap["missing"]
-            semantic_label = "Resume vs JD meaning"
-            skill_label = "JD skills covered"
+            semantic_label = "Resume vs Job Description Relevance"
+            skill_label = "Job Description Skills Match"
         else:
+            semantic_results = analyze_semantic_matching(resume_text, role_document(career_roles, target_role))
             skill_score = role_skill_score["score"]
-            ats_score = round((role_semantic_score * 0.7) + (skill_score * 0.3), 1)
             matched_skills = role_skill_score["matched"]
             missing_skills = role_skill_score["missing"]
-            semantic_label = "Resume vs target role"
-            skill_label = "Target-role skills covered"
+            semantic_label = "Resume vs Target Role Relevance"
+            skill_label = "Target Role Skills Match"
 
-        score_col, _ = st.columns([0.8, 1.2])
-        with score_col:
-            st.markdown("<div class='score-panel'>", unsafe_allow_html=True)
-            st.metric("ATS Match Score", f"{ats_score}%")
-            st.progress(min(int(ats_score), 100))
-            st.markdown("</div>", unsafe_allow_html=True)
+        semantic_score = semantic_results["score"]
 
-        st.markdown("### Skills Found In Resume")
-        badge_list(detected, "info", "No known skills detected yet")
+        # Overall ATS Score (40% Skill Match, 40% Semantic Similarity, 20% Document Structure)
+        ats_score = round((skill_score * 0.40) + (semantic_score * 0.40) + (structure_score * 0.20), 1)
 
-        matched_col, missing_col = st.columns(2)
-        with matched_col:
-            st.markdown("### Matched Skills")
-            badge_list(matched_skills, "success", "No matched skills detected yet")
-        with missing_col:
-            st.markdown("### Missing / Weak Skills")
-            badge_list(missing_skills, "danger", "No missing skills detected")
+        # Display overall score in a beautiful container
+        score_color = "#10b981" if ats_score >= 75 else ("#f59e0b" if ats_score >= 50 else "#ef4444")
+        st.markdown(
+            f"""
+            <div class="ats-overall-card" style="
+                background: linear-gradient(135deg, #0f172a 0%, #080d1a 100%);
+                border: 1px solid rgba(34, 211, 238, 0.1);
+                border-radius: 12px;
+                padding: 1.75rem;
+                margin-bottom: 1.5rem;
+                text-align: center;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            ">
+                <p style="color: #94a3b8; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem 0;">Overall ATS Match Strength</p>
+                <h2 style="font-size: 3.5rem; font-weight: 800; color: {score_color}; margin: 0 0 0.75rem 0; line-height: 1;">{ats_score}%</h2>
+                <div style="background: rgba(255,255,255,0.05); border-radius: 999px; height: 10px; width: 60%; margin: 0 auto 0.75rem auto; overflow: hidden;">
+                    <div style="background: {score_color}; width: {min(int(ats_score), 100)}%; height: 100%; border-radius: 999px; transition: width 0.5s ease-in-out;"></div>
+                </div>
+                <p style="color: #e2e8f0; font-size: 0.95rem; max-width: 600px; margin: 0 auto; line-height: 1.5;">
+                    {'Excellent! Your resume is highly optimized for this role and has passed major ATS filters.' if ats_score >= 75 else 
+                     ('Good match, but has gaps. Tuning your skills list and formatting will make it highly competitive.' if ats_score >= 50 else 
+                      'Weak alignment. You need to incorporate key skills and restructure the resume layout.')}
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
+        # Columns for detailed score metrics
+        m_col1, m_col2, m_col3 = st.columns(3)
+        with m_col1:
+            metric_card("Skill Match", f"{skill_score}%", "Core technical keyword overlap")
+        with m_col2:
+            metric_card("Semantic Fit", f"{semantic_score}%", "Contextual phrasing match")
+        with m_col3:
+            metric_card("Document Structure", f"{structure_score}%", "Formatting & layout checks")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        tabs = st.tabs(["🎯 Skill Match & Gaps", "📋 ATS Layout & Formatting", "🚀 Action Verb Booster", "📄 Document Previews"])
+
+        with tabs[0]:
+            st.markdown("### Technical Skill Analysis")
+            st.markdown("These are the core keywords and tools detected in your profile compared to target requirements.")
+            
+            st.markdown("#### Detected Skills in Resume")
+            badge_list(detected, "info", "No known skills detected yet")
+
+            col_match, col_miss = st.columns(2)
+            with col_match:
+                st.markdown("#### Matched Skills")
+                badge_list(matched_skills, "success", "No matched skills detected yet")
+            with col_miss:
+                st.markdown("#### Missing / Weak Skills")
+                badge_list(missing_skills, "danger", "No missing skills detected")
+                
+            st.markdown("---")
+            st.markdown("#### Vector Space & Embedding Diagnostics")
+            st.markdown("The ATS engine maps your resume and job requirements into high-dimensional vector embeddings to compute semantic similarity:")
+            
+            e_col1, e_col2 = st.columns(2)
+            with e_col1:
+                st.markdown(f"• **Vocabulary Dimensions:** `{semantic_results['vocab_count']}` token features")
+                st.markdown(f"• **Embedding Feature Dimensions:** `2 x {semantic_results['feature_dims']}` dense matrix")
+            with e_col2:
+                st.markdown("• **Top Shared Semantic Terms:**")
+                if semantic_results["top_terms"]:
+                    badge_list(semantic_results["top_terms"], "success")
+                else:
+                    st.markdown("*No significant overlapping terms found.*")
+
+            if missing_skills:
+                st.markdown("#### Recommended Learning Focus")
+                st.markdown("Prioritize studying these missing skills to close your preparation gap:")
+                focus_skills = missing_skills[:6]
+                related_courses = courses[courses["Skill"].isin(focus_skills)]
+                st.dataframe(related_courses.head(8), use_container_width=True, hide_index=True)
+
+        with tabs[1]:
+            st.markdown("### ATS Formatting & Structural Audit")
+            st.markdown("ATS parsers search for specific sections and structural signals. Ensure these formatting rules are followed:")
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("#### Contact Information & Links")
+                email_status = "✅ Email Address Found" if structure_results["has_email"] else "❌ Email Address Missing"
+                linkedin_status = "✅ LinkedIn Profile Link Found" if structure_results["has_linkedin"] else "⚠️ LinkedIn Link Missing (Recommended)"
+                github_status = "✅ GitHub Profile Link Found" if structure_results["has_github"] else "⚠️ GitHub Link Missing (Recommended)"
+                
+                st.markdown(f"<div style='font-size: 0.95rem; line-height: 2;'>• {email_status}<br>• {linkedin_status}<br>• {github_status}</div>", unsafe_allow_html=True)
+                
+                st.markdown("#### Document Length")
+                st.markdown(f"• **Word Count:** {structure_results['word_count']} words")
+                word_color = "#10b981" if structure_results["word_count"] in range(300, 1200) else "#f59e0b"
+                st.markdown(f"<div style='padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.03); border-left: 3px solid {word_color}; font-size: 0.9rem;'>{structure_results['word_msg']}</div>", unsafe_allow_html=True)
+
+            with c2:
+                st.markdown("#### Key Sections Found")
+                sec_map = structure_results["found_sections"]
+                for sec, found in sec_map.items():
+                    sec_status = "✅ Found" if found else "❌ Missing"
+                    st.markdown(f"• **{sec}:** {sec_status}")
+                    
+                st.markdown("#### Action Verbs Strengths")
+                verb_color = "#10b981" if structure_results["verb_count"] >= 8 else ("#f59e0b" if structure_results["verb_count"] >= 4 else "#ef4444")
+                st.markdown(f"<div style='padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.03); border-left: 3px solid {verb_color}; font-size: 0.9rem;'>{structure_results['verb_msg']}</div>", unsafe_allow_html=True)
+
+        with tabs[2]:
+            st.markdown("### Action Verb Optimization")
+            st.markdown("ATS algorithms rank resumes higher when they use strong, action-oriented verbs rather than passive statements like 'responsible for'.")
+            
+            st.markdown("#### Action Verbs Detected in Your Resume")
+            if structure_results["found_verbs"]:
+                badge_list(structure_results["found_verbs"], "cyan")
+            else:
+                st.warning("No standard action verbs detected. Try using words like 'developed', 'managed', or 'optimized'.")
+                
+            st.markdown("---")
+            st.markdown("#### ATS Recommended Verbs to Boost Your Score")
+            st.markdown("Replace passive descriptions with these industry-approved action verbs:")
+            
+            v_col1, v_col2, v_col3 = st.columns(3)
+            with v_col1:
+                st.markdown("**Creation & Build:**")
+                st.markdown("`engineered`, `architected`, `spearheaded`, `formulated`, `conceptualized` (e.g., *'Architected a distributed payment system...'* )")
+            with v_col2:
+                st.markdown("**Optimization & Scale:**")
+                st.markdown("`optimized`, `streamlined`, `automated`, `accelerated`, `revitalized` (e.g., *'Streamlined CI/CD deployment pipelines...'* )")
+            with v_col3:
+                st.markdown("**Leadership & Value:**")
+                st.markdown("`spearheaded`, `championed`, `orchestrated`, `delivered`, `maximized` (e.g., *'Orchestrated cross-functional database migrations...'* )")
+
+        with tabs[3]:
+            prev_col1, prev_col2 = st.columns(2)
+            with prev_col1:
+                st.markdown("#### Parsed Resume Plain Text")
+                st.text_area("Resume plain text content", resume_text, height=300, label_visibility="collapsed", key="preview_resume_plain")
+            with prev_col2:
+                st.markdown("#### Job Description / Target Role Doc")
+                if jd_text:
+                    st.text_area("JD plain text content", jd_text, height=300, label_visibility="collapsed", key="preview_jd_plain")
+                else:
+                    st.text_area("Target role metadata plain text", role_document(career_roles, target_role), height=300, label_visibility="collapsed", key="preview_role_plain")
+
+        st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("### Smart ATS Suggestions")
         if ats_score >= 75:
             roadmap_step("01", "Strong ATS Alignment", "Your resume is semantically close to the role. Improve by adding measurable project outcomes and exact job-title language.", "green")
             roadmap_step("02", "Prepare Proof", "Be ready to explain projects, tools, and responsibilities that connect to this role.", "cyan")
-        elif ats_score >= 45:
+        elif ats_score >= 50:
             roadmap_step("01", "Improve Role Alignment", "Your resume has partial fit. Add stronger project bullets, relevant tools, and missing skills from the list.", "violet")
             roadmap_step("02", "Rewrite Key Sections", "Tune your summary, skills, and project descriptions to match the target role or JD responsibilities.", "cyan")
         else:
             roadmap_step("01", "Build Missing Foundations", "The current resume is not close enough semantically. Learn the missing skills and add proof projects.", "red")
             roadmap_step("02", "Use A Better-Fit Target", "Try a target role closer to your current skill profile while you build toward this one.", "violet")
-
-        preview_col, focus_col = st.columns([1, 1])
-        with preview_col:
-            st.markdown("### Resume Preview")
-            st.text_area("Resume text", resume_text[:3500], height=260, label_visibility="collapsed")
-        with focus_col:
-            st.markdown("### Learning Focus")
-            focus_skills = missing_skills[:5]
-            if focus_skills:
-                related_courses = courses[courses["Skill"].isin(focus_skills)]
-                st.dataframe(related_courses.head(8), use_container_width=True, hide_index=True)
-            else:
-                st.success("Strong match. Focus on projects, proof of impact, and interview preparation.")
-
-        if jd_text:
-            st.markdown("### Job Description Preview")
-            st.text_area("JD text", jd_text[:2500], height=180, label_visibility="collapsed")
     else:
         st.info("Upload a resume to generate semantic ATS analysis. Add a job description for the most accurate score.")
 
@@ -551,9 +883,13 @@ elif menu == "Resume Analysis":
 elif menu == "Career Recommendation":
     section_header("Career Recommendation", "semantic fit engine", "Select your skills and discover your strongest role matches using skill overlap and semantic similarity.")
 
-    user_skills = st.multiselect("Your skills", sorted(career_roles["Skill"].unique()))
+    default_skills = st.session_state.get("resume_skills", [])
+    default_text = st.session_state.get("resume_text", "")
+    
+    user_skills = st.multiselect("Your skills", sorted(career_roles["Skill"].unique()), default=default_skills)
     resume_context = st.text_area(
         "Optional profile summary or resume text",
+        value=default_text[:2000] if default_text else "",
         height=140,
         placeholder="Paste resume summary, project details, or experience text for stronger semantic role matching.",
     )
@@ -563,7 +899,18 @@ elif menu == "Career Recommendation":
         top = result.head(5)
 
         st.markdown("### Best Semantic Matches")
-        st.dataframe(top, use_container_width=True, hide_index=True)
+        st.dataframe(
+            top,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Role": st.column_config.TextColumn("Career Role", width="medium"),
+                "Overall Match %": st.column_config.ProgressColumn("Overall Match", min_value=0, max_value=100, format="%d%%"),
+                "Skill Match %": st.column_config.NumberColumn("Skill Keyword Match", format="%d%%"),
+                "Semantic Fit %": st.column_config.NumberColumn("Semantic Phrase Fit", format="%d%%"),
+                "Missing Skills": st.column_config.TextColumn("Missing Skills", width="large"),
+            }
+        )
 
         chart = (
             alt.Chart(top)
@@ -585,7 +932,8 @@ elif menu == "Skill Gap":
     section_header("Skill Gap Analysis", "readiness check", "Compare your current skill stack with the skills required for a target role.")
 
     role = st.selectbox("Choose career", sorted(career_roles["Role"].unique()))
-    user_skills = st.multiselect("Your skills", sorted(career_roles["Skill"].unique()))
+    default_skills = st.session_state.get("resume_skills", [])
+    user_skills = st.multiselect("Your skills", sorted(career_roles["Skill"].unique()), default=default_skills)
 
     required = role_required_skills(career_roles, role)
     gap = score_role(user_skills, required)
@@ -598,10 +946,13 @@ elif menu == "Skill Gap":
     with col3:
         metric_card("Missing", str(len(gap["missing"])), "Skills to build next")
 
-    st.markdown("### Required Skills")
-    badge_list(required, "info")
-    st.markdown("### Missing Skills")
-    badge_list(gap["missing"], "danger", "No missing skills for this role")
+    col_req, col_miss = st.columns(2)
+    with col_req:
+        st.markdown("### Matched Skills")
+        badge_list(gap["matched"], "success", "No matched skills yet")
+    with col_miss:
+        st.markdown("### Missing Skills")
+        badge_list(gap["missing"], "danger", "No missing skills for this role")
 
 
 elif menu == "Course Finder":
@@ -614,14 +965,33 @@ elif menu == "Course Finder":
     if level != "All":
         filtered = filtered[filtered["Level"] == level]
 
-    st.dataframe(filtered, use_container_width=True, hide_index=True)
+    st.dataframe(
+        filtered,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Skill": st.column_config.TextColumn("Target Skill", width="medium"),
+            "Course": st.column_config.TextColumn("Course Title", width="large"),
+            "Platform": st.column_config.TextColumn("Learning Platform", width="medium"),
+            "Level": st.column_config.TextColumn("Difficulty Level", width="small"),
+        }
+    )
 
 
 elif menu == "Market Trends":
     section_header("Market Trends", "skill demand", "Explore which skills are strongest in the current career dataset.")
 
     sorted_trends = skills_trends.sort_values("DemandScore", ascending=False)
-    st.dataframe(sorted_trends, use_container_width=True, hide_index=True)
+    st.dataframe(
+        sorted_trends,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Skill": st.column_config.TextColumn("Skill Keyword", width="medium"),
+            "DemandScore": st.column_config.ProgressColumn("Market Demand Score", min_value=0, max_value=100, format="%d"),
+            "Category": st.column_config.TextColumn("Technology Category", width="medium"),
+        }
+    )
 
     chart = (
         alt.Chart(sorted_trends)
@@ -641,7 +1011,8 @@ elif menu == "Roadmap":
     section_header("Career Roadmap", "growth plan", "Build a practical path from current skills to target-role readiness.")
 
     role = st.selectbox("Target role", sorted(career_roles["Role"].unique()))
-    user_skills = st.multiselect("Your current skills", sorted(career_roles["Skill"].unique()))
+    default_skills = st.session_state.get("resume_skills", [])
+    user_skills = st.multiselect("Your current skills", sorted(career_roles["Skill"].unique()), default=default_skills)
 
     required = role_required_skills(career_roles, role)
     gap = score_role(user_skills, required)
@@ -680,4 +1051,14 @@ elif menu == "Roadmap":
 
     if missing:
         st.markdown("### Courses For Next Skills")
-        st.dataframe(courses[courses["Skill"].isin(missing[:5])].head(10), use_container_width=True, hide_index=True)
+        st.dataframe(
+            courses[courses["Skill"].isin(missing[:5])].head(10),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Skill": st.column_config.TextColumn("Target Skill", width="medium"),
+                "Course": st.column_config.TextColumn("Course Title", width="large"),
+                "Platform": st.column_config.TextColumn("Learning Platform", width="medium"),
+                "Level": st.column_config.TextColumn("Difficulty Level", width="small"),
+            }
+        )
