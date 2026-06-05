@@ -5,8 +5,9 @@ AI Career Intelligence System is a Streamlit-based career analytics platform tha
 ## Features
 
 - Dark premium dashboard UI
-- Resume analysis for TXT and text-based PDF files
-- ATS match score against a selected target role
+- Resume analysis for PDF, DOCX, TXT, and text-like files
+- Semantic ATS match score against a target role or job description
+- Job description comparison inside Resume Analysis
 - Matched and missing skill detection
 - Career recommendation based on selected skills
 - Skill gap analysis with readiness percentage
@@ -21,6 +22,8 @@ AI Career Intelligence System is a Streamlit-based career analytics platform tha
 - Pandas
 - Altair
 - PDFPlumber
+- Scikit-learn
+- Python-docx
 
 ## Project Structure
 
@@ -59,7 +62,6 @@ streamlit run app.py
 
 ## Future Enhancements
 
-- Job description matcher
 - AI-generated resume feedback
 - Downloadable PDF career report
 - User login and saved analysis history
