@@ -1,5 +1,6 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from io import BytesIO
 
 import altair as alt
 import pandas as pd
@@ -12,6 +13,11 @@ try:
     import pdfplumber
 except ImportError:  # The app still works for TXT resumes.
     pdfplumber = None
+
+try:
+    from pdfminer.high_level import extract_text as pdfminer_extract_text
+except ImportError:
+    pdfminer_extract_text = None
 
 try:
     from docx import Document
@@ -66,7 +72,7 @@ def extract_docx_text(uploaded_file) -> str:
     if Document is None:
         return ""
 
-    document = Document(uploaded_file)
+    document = Document(BytesIO(uploaded_file.getvalue()))
     paragraphs = [paragraph.text for paragraph in document.paragraphs if paragraph.text.strip()]
 
     table_text = []
@@ -91,11 +97,55 @@ def extract_plain_text(uploaded_file) -> str:
     return ""
 
 
+def extract_pdf_text(uploaded_file) -> str:
+    pdf_bytes = uploaded_file.getvalue()
+    text_parts = []
+
+    if pdfplumber is not None:
+        try:
+            with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+                for page in pdf.pages:
+                    text_parts.append(page.extract_text() or "")
+        except Exception:
+            text_parts = []
+
+    text = "\n".join(text_parts).strip()
+    if text:
+        return text
+
+    if pdfminer_extract_text is not None:
+        try:
+            with NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+                temp_file.write(pdf_bytes)
+                temp_path = temp_file.name
+            return pdfminer_extract_text(temp_path).strip()
+        except Exception:
+            return ""
+
+    return ""
+
+
+def detect_uploaded_file_type(uploaded_file) -> str:
+    suffix = Path(uploaded_file.name).suffix.lower()
+    raw_bytes = uploaded_file.getvalue()
+
+    if suffix:
+        return suffix
+
+    if raw_bytes.startswith(b"%PDF"):
+        return ".pdf"
+
+    if raw_bytes.startswith(b"PK") and b"word/" in raw_bytes[:5000]:
+        return ".docx"
+
+    return ".txt"
+
+
 def extract_resume_text(uploaded_file) -> tuple[str, str]:
     if uploaded_file is None:
         return "", ""
 
-    suffix = Path(uploaded_file.name).suffix.lower()
+    suffix = detect_uploaded_file_type(uploaded_file)
 
     try:
         if suffix in {".txt", ".md", ".csv", ".rtf"}:
@@ -110,22 +160,11 @@ def extract_resume_text(uploaded_file) -> tuple[str, str]:
         if suffix == ".doc":
             return "", "Old .doc files are not supported directly. Please save it as .docx or PDF and upload again."
 
-        if suffix == ".pdf" and pdfplumber is not None:
-            with NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-                temp_file.write(uploaded_file.getbuffer())
-                temp_path = temp_file.name
-
-            text_parts = []
-            with pdfplumber.open(temp_path) as pdf:
-                for page in pdf.pages:
-                    text_parts.append(page.extract_text() or "")
-            text = "\n".join(text_parts).strip()
+        if suffix == ".pdf":
+            text = extract_pdf_text(uploaded_file)
             if text:
                 return text, ""
-            return "", "This PDF does not contain readable text. It may be a scanned resume image."
-
-        if suffix == ".pdf":
-            return "", "PDF support is not available because pdfplumber is missing."
+            return "", "The PDF uploaded successfully, but no readable text was found. If it is a scanned/image resume, please upload DOCX or text-based PDF."
 
         fallback_text = extract_plain_text(uploaded_file).strip()
         if fallback_text:
@@ -404,17 +443,17 @@ elif menu == "Resume Analysis":
     with input_col:
         uploaded_file = st.file_uploader(
             "Upload resume",
-            type=["pdf", "docx", "doc", "txt", "md", "rtf", "csv"],
-            help="Supported formats: PDF, DOCX, DOC, TXT, Markdown, RTF, and text-like files.",
+            type=None,
+            help="Upload any resume file. Best supported: PDF, DOCX, TXT, Markdown, RTF, CSV.",
         )
         target_role = st.selectbox("Target career role", sorted(career_roles["Role"].unique()))
 
     with jd_col:
         jd_file = st.file_uploader(
             "Upload job description",
-            type=["pdf", "docx", "doc", "txt", "md", "rtf", "csv"],
+            type=None,
             key="resume_analysis_jd_upload",
-            help="Optional. Paste a JD below or upload one here for more accurate ATS scoring.",
+            help="Optional. Upload any JD file or paste the job description below.",
         )
         pasted_jd = st.text_area(
             "Paste job description",
